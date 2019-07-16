@@ -1,5 +1,7 @@
 SHELL:=/bin/bash
 UNAME:=$(shell uname)
+DIRNAME:=$(shell python -c 'import os; print(os.path.basename(os.path.realpath(".")))')
+ABSDIR:=$(shell python -c 'import os; print(os.path.realpath("."))')
 
 export NXF_VER:=19.01.0
 ./nextflow:
@@ -37,12 +39,45 @@ test:
 	python -c 'import pysam; import Bio;'
 	which samtools
 
+list:
+	conda list
+
+EP:=
 run: conda ./nextflow
-	./nextflow run main.nf -resume
+	./nextflow run main.nf -resume $(EP)
 
+# submit the parent Nextflow script as a SLURM job
+LOG_DIR:=logs
+LOG_DIR_ABS:=$(shell python -c 'import os; print(os.path.realpath("$(LOG_DIR)"))')
+SUBJOBNAME:=fastq-subset
+SUBLOG:=$(LOG_DIR_ABS)/slurm-%j.out
+SUBQ:=cpu_long
+SUBTIME:=--time=5-00:00:00
+SUBTHREADS:=4
+SUBMEM:=8G
+NXF_NODEFILE:=.nextflow.node
+NXF_JOBFILE:=.nextflow.jobid
+NXF_PIDFILE:=.nextflow.pid
+NXF_SUBMIT:=.nextflow.submitted
+NXF_SUBMITLOG:=.nextflow.submitted.log
+submit:
+	printf "#!/bin/bash\n \
+	make submit-run" | \
+	sbatch -D "$(ABSDIR)" -o "$(SUBLOG)" -J "$(SUBJOBNAME)" -p "$(SUBQ)" $(SUBTIME) --ntasks-per-node=1 -c "$(SUBTHREADS)" --mem "$(SUBMEM)" /dev/stdin | tee >(sed 's|[^[:digit:]]*\([[:digit:]]*\).*|\1|' > '$(NXF_JOBFILE)')
 
+submit-run:
+	touch "$(NXF_SUBMIT)" ; \
+	if [ -e "$(NXF_NODEFILE)" -a -e "$(NXF_PIDFILE)" ]; then paste "$(NXF_NODEFILE)" "$(NXF_PIDFILE)" >> $(NXF_SUBMITLOG); fi ; \
+	echo "$${SLURMD_NODENAME}" > "$(NXF_NODEFILE)" && \
+	$(MAKE) run && \
+	if [ -e "$(NXF_SUBMIT)" ]; then rm -f "$(NXF_SUBMIT)"; fi
 
-
+# issue an interupt signal to a process running on a remote server
+# e.g. Nextflow running in a qsub job on a compute node
+# kill: PID=$(shell head -1 "$(NXF_PIDFILE)")
+kill: REMOTE=$(shell head -1 "$(NXF_NODEFILE)")
+kill: $(NXF_NODEFILE) $(NXF_PIDFILE)
+	ssh "$(REMOTE)" 'set -x; ps uax | grep nextflow.cli.Launcher | grep java | cut -d " " -f2 | xargs kill'
 
 # ~~~~~ CLEANUP ~~~~~ #
 # commands to clean out items in the current directory after running the pipeline
