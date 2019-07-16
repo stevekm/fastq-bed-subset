@@ -7,3 +7,4 @@ nextflow
 *.html
 trace.txt*
 work/
+logs/
