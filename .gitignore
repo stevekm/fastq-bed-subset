@@ -1,0 +1,9 @@
+.nextflow.log
+.nextflow.log
+input/
+.nextflow/
+conda/
+nextflow
+*.html
+trace.txt*
+work/
