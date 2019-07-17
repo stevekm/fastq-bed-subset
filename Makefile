@@ -71,7 +71,7 @@ submit:
 	} \n\
 	trap kill_func INT \n\
 	trap kill_func EXIT \n\
-	./nextflow run main.nf & pid=$$! ; echo "waiting for $${pid}" ; wait $$pid \n\
+	./nextflow run main.nf -resume & pid=$$! ; echo "waiting for $${pid}" ; wait $$pid \n\
 	' | \
 	sbatch -D "$(ABSDIR)" -o "$(SUBLOG)" -J "$(SUBJOBNAME)" -p "$(SUBQ)" $(SUBTIME) --ntasks-per-node=1 -c "$(SUBTHREADS)" --mem "$(SUBMEM)" /dev/stdin | tee >(sed 's|[^[:digit:]]*\([[:digit:]]*\).*|\1|' > '$(NXF_JOBFILE)')
 
