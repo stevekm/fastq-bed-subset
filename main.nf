@@ -88,16 +88,15 @@ samples_qnames.map { sampleID, fastq_R1, fastq_R2, chrom, start, stop, numReads,
     .set { samples_qnames_per_fastq }
 
 process subset_fastq {
-    publishDir "${params.outputDir}/reads"
     input:
     set val(sampleID), val(chrom), val(start), val(stop), val(numReads), file(qnames_txt), val(fastq_label), file(fastq) from samples_qnames_per_fastq
 
     output:
-    set val(sampleID), val(chrom), val(start), val(stop), val(fastq_label), file("${output_file}") into subset_fastqs
+    set val(sampleID), val(fastq_label), file("${output_file}") into subset_fastqs
 
     script:
     fastq_basename = "${fastq}".replaceFirst(/.fastq.gz$/, "")
-    prefix = "${sampleID}.${chrom}.${start}.${stop}.${fastq_label}.${fastq_basename}"
+    prefix = "${chrom}.${start}.${stop}"
     output_file = "${prefix}.fastq.gz"
     """
     subset_fastq.py \
@@ -107,4 +106,21 @@ process subset_fastq {
     """
 }
 
-subset_fastqs.groupTuple(by: [0,1,2,3,4]).subscribe { println "${it}" }
+// need to merge all the individual fastq per chrom based on sample and R1/R2
+subset_fastqs.groupTuple(by: [0,1]).set { grouped_fastqs }
+process merge_subsetted_fastq {
+    publishDir "${params.outputDir}/reads"
+    input:
+    set val(sampleID), val(fastq_label), file(fastqs: "*") from grouped_fastqs
+
+    output:
+    set val(sampleID), val(fastq_label), file("${output_file}") into merged_subset_fastqs
+
+    script:
+    prefix = "${sampleID}.${fastq_label}"
+    output_file = "${prefix}.fastq.gz"
+    """
+    echo ${fastqs} | tr ' ' '\n' | sort | tr '\n' ' ' | xargs cat > "${output_file}"
+    """
+}
+merged_subset_fastqs.subscribe { println "${it}" }
