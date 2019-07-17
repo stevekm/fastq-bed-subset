@@ -9,3 +9,4 @@ trace.txt*
 work/
 logs/
 .nextflow.*
+output/

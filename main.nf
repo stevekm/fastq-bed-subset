@@ -1,6 +1,7 @@
 params.samplesheet = "samplesheet.tsv"
 params.targets = "targets.bed"
 params.maxReads = "5000"
+params.outputDir = "output"
 // def maxReads = params.maxReads.toInteger()
 
 Channel.fromPath( params.samplesheet )
@@ -87,11 +88,16 @@ samples_qnames.map { sampleID, fastq_R1, fastq_R2, chrom, start, stop, numReads,
     .set { samples_qnames_per_fastq }
 
 process subset_fastq {
+    publishDir "${params.outputDir}/reads"
     input:
     set val(sampleID), val(chrom), val(start), val(stop), val(numReads), file(qnames_txt), val(fastq_label), file(fastq) from samples_qnames_per_fastq
 
+    output:
+    set val(sampleID), val(chrom), val(start), val(stop), val(fastq_label), file("${output_file}") into subset_fastqs
+
     script:
-    prefix = "${sampleID}.${chrom}.${start}.${stop}.${fastq_label}"
+    fastq_basename = "${fastq}".replaceFirst(/.fastq.gz$/, "")
+    prefix = "${sampleID}.${chrom}.${start}.${stop}.${fastq_label}.${fastq_basename}"
     output_file = "${prefix}.fastq.gz"
     """
     subset_fastq.py \
@@ -100,3 +106,5 @@ process subset_fastq {
     "${output_file}"
     """
 }
+
+subset_fastqs.groupTuple(by: [0,1,2,3,4]).subscribe { println "${it}" }

@@ -60,24 +60,27 @@ NXF_JOBFILE:=.nextflow.jobid
 NXF_PIDFILE:=.nextflow.pid
 NXF_SUBMIT:=.nextflow.submitted
 NXF_SUBMITLOG:=.nextflow.submitted.log
-submit:
-	printf "#!/bin/bash\n \
-	make submit-run" | \
-	sbatch -D "$(ABSDIR)" -o "$(SUBLOG)" -J "$(SUBJOBNAME)" -p "$(SUBQ)" $(SUBTIME) --ntasks-per-node=1 -c "$(SUBTHREADS)" --mem "$(SUBMEM)" /dev/stdin | tee >(sed 's|[^[:digit:]]*\([[:digit:]]*\).*|\1|' > '$(NXF_JOBFILE)')
 
-submit-run:
-	touch "$(NXF_SUBMIT)" ; \
-	if [ -e "$(NXF_NODEFILE)" -a -e "$(NXF_PIDFILE)" ]; then paste "$(NXF_NODEFILE)" "$(NXF_PIDFILE)" >> $(NXF_SUBMITLOG); fi ; \
-	echo "$${SLURMD_NODENAME}" > "$(NXF_NODEFILE)" && \
-	$(MAKE) run && \
-	if [ -e "$(NXF_SUBMIT)" ]; then rm -f "$(NXF_SUBMIT)"; fi
+submit:
+	printf '#!/bin/bash \n\
+	set -x \n\
+	echo $$SLURMD_NODENAME > "$(NXF_NODEFILE)" \n\
+	pid="" \n\
+	kill_func(){ \n\
+	echo TRAP; kill $$pid ; wait $$pid \n\
+	} \n\
+	trap kill_func INT \n\
+	trap kill_func EXIT \n\
+	./nextflow run main.nf & pid=$$! ; echo "waiting for $${pid}" ; wait $$pid \n\
+	' | \
+	sbatch -D "$(ABSDIR)" -o "$(SUBLOG)" -J "$(SUBJOBNAME)" -p "$(SUBQ)" $(SUBTIME) --ntasks-per-node=1 -c "$(SUBTHREADS)" --mem "$(SUBMEM)" /dev/stdin | tee >(sed 's|[^[:digit:]]*\([[:digit:]]*\).*|\1|' > '$(NXF_JOBFILE)')
 
 # issue an interupt signal to a process running on a remote server
 # e.g. Nextflow running in a qsub job on a compute node
-# kill: PID=$(shell head -1 "$(NXF_PIDFILE)")
-kill: REMOTE=$(shell head -1 "$(NXF_NODEFILE)")
-kill: $(NXF_NODEFILE) $(NXF_PIDFILE)
-	ssh "$(REMOTE)" 'set -x; ps uax | grep nextflow.cli.Launcher | grep java | cut -d " " -f2 | xargs kill'
+kill: NXF_JOB:=$(shell head -1 $(NXF_JOBFILE))
+kill: $(NXF_JOBFILE)
+	scancel "$(NXF_JOB)"
+
 
 # ~~~~~ CLEANUP ~~~~~ #
 # commands to clean out items in the current directory after running the pipeline
