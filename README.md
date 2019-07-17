@@ -75,7 +75,7 @@ If you want to submit the parent Nextflow process to the SLURM HPC cluster for e
 
 - `Makefile`: wrapper script to easily set up and execute the workflow
 
-- `nextflow.confi`: configure file for Nextflow
+- `nextflow.config`: configure file for Nextflow
 
 - `targets.bed`: genomic coordinates file
 
