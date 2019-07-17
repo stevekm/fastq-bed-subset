@@ -67,6 +67,20 @@ make run
 
 If you want to submit the parent Nextflow process to the SLURM HPC cluster for execution, you can use `make submit` instead.
 
+# Contents
+
+- `bin`: directory with scripts to be used during Nextflow workflow
+
+- `main.nf`: main Nextflow workflow script
+
+- `Makefile`: wrapper script to easily set up and execute the workflow
+
+- `nextflow.confi`: configure file for Nextflow
+
+- `targets.bed`: genomic coordinates file
+
+- `samplesheet.tsv`: samplesheet with input files to be processed
+
 # Software
 
 - Nextflow (installation included)
