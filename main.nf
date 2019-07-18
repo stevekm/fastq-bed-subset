@@ -109,7 +109,7 @@ process subset_fastq {
 // need to merge all the individual fastq per chrom based on sample and R1/R2
 subset_fastqs.groupTuple(by: [0,1]).set { grouped_fastqs }
 process merge_subsetted_fastq {
-    publishDir "${params.outputDir}/reads"
+    publishDir "${params.outputDir}/reads", mode: "copy", overwrite: true
     input:
     set val(sampleID), val(fastq_label), file(fastqs: "*") from grouped_fastqs
 
